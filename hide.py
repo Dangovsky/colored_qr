@@ -2,7 +2,7 @@ from PIL import Image
 import qrcode
 
 
-def generate_qr(filename, mess, color):
+def generate_qr(mess, color, filename = None):
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_Q,
@@ -13,30 +13,34 @@ def generate_qr(filename, mess, color):
     qr.make(fit=True)
 
     img = qr.make_image(fill_color=color, back_color='white')
-    img.save(filename + '.jpeg', 'jpeg')
+
+    if filename not is None
+        img.save(filename + '.jpeg', 'jpeg')
     return img
 
 
-def two_color_hide(mess):
+def four_color_hide(mess, file_name = None):
     firstpart, secondpart = mess[:round(
         len(mess)/2)], mess[round(len(mess)/2):]
 
-    qr_c = generate_qr('cyan_2', firstpart, 'cyan')
-    qr_m = generate_qr('magenta_2', secondpart, 'magenta')
+    qr_c = generate_qr(firstpart, 'cyan')
+    qr_m = generate_qr(secondpart, 'magenta')
     summ = Image.merge('RGB', (qr_c.getchannel(
         0), qr_m.getchannel(1), qr_c.getchannel(2)))
-    summ.save('two.jpeg', 'jpeg')
+    if filename not is None
+        summ.save(file_name + 'two.jpeg', 'jpeg')
     return summ
 
 
-def three_color_hide(mess):
+def eight_color_hide(mess, file_name = None):
     firstpart, secondpart, thirdpart = mess[:round(len(
         mess)/3)], mess[round(len(mess)/3):round(len(mess)/3*2)], mess[round(len(mess)/3*2):]
 
-    qr_r = generate_qr('red_3', firstpart, 'cyan')
-    qr_g = generate_qr('green_3', secondpart, 'magenta')
-    qr_b = generate_qr('blue_3', thirdpart, 'yellow')
+    qr_r = generate_qr(thirdpart, 'cyan')
+    qr_g = generate_qr(secondpart, 'magenta')
+    qr_b = generate_qr(firstpart, 'yellow')
     summ = Image.merge('RGB', (qr_r.getchannel(
         0), qr_g.getchannel(1), qr_b.getchannel(2)))
-    summ.save('three.jpeg', 'jpeg')
+    if filename not is None
+        summ.save(filename + '.jpeg', 'jpeg')
     return summ

@@ -1,13 +1,39 @@
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
 from pyzbar.pyzbar import decode
 from PIL import Image
 from sklearn.cluster import KMeans
 import math
 
+import atexit
+from time import time, strftime, localtime
+from datetime import timedelta
+
 step = 2
 color_threshold = 200
+
+
+def secondsToStr(elapsed=None):
+    if elapsed is None:
+        return strftime("%Y-%m-%d %H:%M:%S", localtime())
+    else:
+        return str(timedelta(seconds=elapsed))
+
+
+def log(s, elapsed=None):
+    line = "="*40
+    print(line)
+    print(secondsToStr(), '-', s)
+    if elapsed:
+        print("Elapsed time:", elapsed)
+    print(line)
+    print()
+
+
+def endlog(start):
+    end = time()
+    elapsed = end-start
+    log("End Program", secondsToStr(elapsed))
 
 
 # open image, send it to zbar and calculate
@@ -17,7 +43,6 @@ color_threshold = 200
 # rects - rectangles in whitch qr-codes licated
 def locate_qr(file_name):
     codes = decode(Image.open(file_name))
-    print(codes)
     located, perspective_transforms, rects = [], [], []
     for code in codes:
         if code.type == 'QRCODE':
@@ -197,7 +222,6 @@ def recover_data_from_lables(lables, lables_to_bits, qr_shape, qr_margin):
             for y in range(qr_margin[1], qr_shape[1] - qr_margin[1]):
                 pix[y, x] = (lables_to_bits[lables[i]][color])
                 i += 1
-        plt.imshow(qr), plt.title('qr')
 
         code = decode(qr)
         if not code:
@@ -207,7 +231,10 @@ def recover_data_from_lables(lables, lables_to_bits, qr_shape, qr_margin):
     return data
 
 
-def decode_color_qr(file_name, n_clusters):
+def decode_color_qr(file_name, n_colors=8, block_size_divider=3):
+    start = time()
+    log("Start Program")
+
     codes, perspective_transform, rect = locate_qr(file_name)
     data = []
     i = 0
@@ -215,14 +242,8 @@ def decode_color_qr(file_name, n_clusters):
         size, img, rotation_matrix = rotate_qr(code)
 
         size_true = find_block_size(img, size)
-        #size_true[0], size_true[1] = round(size_true[0]), round(size_true[1])
-
-        size_true = (5, 5)
-
-        print('img shape = ', img.shape, 'true size = ',
-              img.shape[0] / (21 + 7 + 7))
-        print('block size est = ', size)
-        print('block size = ', size_true)
+        size_true[0], size_true[1] = round(
+            size_true[0] / block_size_divider), round(size_true[1] / block_size_divider)
 
         color_img = cv2.imread(file_name)
         color_img = color_img[rect[i].top:rect[i].top+rect[i].height,
@@ -234,7 +255,7 @@ def decode_color_qr(file_name, n_clusters):
                 color_img, rotation_matrix, (color_img.shape[0], color_img.shape[1]))
 
         lables, lables_to_bits = cluster_colors(
-            color_img, size_true, n_clusters)
+            color_img, size_true, n_colors)
 
         qr_block_size = (1, 1)
         qr_margin = (int(qr_block_size[0] * 4),
@@ -246,4 +267,5 @@ def decode_color_qr(file_name, n_clusters):
             lables, lables_to_bits, qr_shape, qr_margin))
 
         i += 1
+    endlog(start)
     return data
