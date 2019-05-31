@@ -1,48 +1,37 @@
 import cv2
 import numpy as np
-from pyzbar.pyzbar import decode
 from PIL import Image
 from sklearn.cluster import KMeans
+from pyzbar.pyzbar import decode
+import zxing
 import math
-
-import atexit
-from time import time, strftime, localtime
 from datetime import timedelta
+from time import time, strftime, localtime
+import atexit
+
+from matplotlib import pyplot as plt
+import matplotlib as mpl
+mpl.style.use('grayscale')
 
 step = 2
 color_threshold = 200
 
 
-def secondsToStr(elapsed=None):
-    if elapsed is None:
-        return strftime("%Y-%m-%d %H:%M:%S", localtime())
-    else:
-        return str(timedelta(seconds=elapsed))
-
-
-def log(s, elapsed=None):
-    line = "="*40
-    print(line)
-    print(secondsToStr(), '-', s)
-    if elapsed:
-        print("Elapsed time:", elapsed)
-    print(line)
-    print()
-
-
-def endlog(start):
+def time_past(start):
     end = time()
     elapsed = end-start
-    log("End Program", secondsToStr(elapsed))
-
+    return str(timedelta(seconds=elapsed))
 
 # open image, send it to zbar and calculate
 # perspective transformations
 # return arrays: located qr-codes, may be incorretly rotated;
 # perspective_transforms - matrix for cv2.warpPerspective;
 # rects - rectangles in whitch qr-codes licated
+
+
 def locate_qr(file_name):
     codes = decode(Image.open(file_name))
+    # print(codes)
     located, perspective_transforms, rects = [], [], []
     for code in codes:
         if code.type == 'QRCODE':
@@ -214,6 +203,7 @@ def cluster_colors(color_img, size, n_clusters):
 def recover_data_from_lables(lables, lables_to_bits, qr_shape, qr_margin):
     qr = Image.new('1', qr_shape, 1)
     pix = qr.load()
+    reader = zxing.BarCodeReader()
     data = []
 
     for color in range(0, len(lables_to_bits[0])):
@@ -223,17 +213,26 @@ def recover_data_from_lables(lables, lables_to_bits, qr_shape, qr_margin):
                 pix[y, x] = (lables_to_bits[lables[i]][color])
                 i += 1
 
-        code = decode(qr)
-        if not code:
-            continue
+        #plt.subplot(122), plt.imshow(qr), plt.title('qr')
+        zbar_code = decode(qr)
 
-        data.append(code[0].data)
+        if not zbar_code:
+            qr.save('tmp.jpeg', 'jpeg')
+            zxing_code = reader.decode("tmp.jpeg", True)
+
+            if not zxing_code:
+                continue
+            else:
+                # print(zxing_code)
+                data.append(zxing_code.raw)
+        else:
+            # print(zbar_code)
+            data.append(zbar_code[0].data)
     return data
 
 
 def decode_color_qr(file_name, n_colors=8, block_size_divider=3):
     start = time()
-    log("Start Program")
 
     codes, perspective_transform, rect = locate_qr(file_name)
     data = []
@@ -244,6 +243,11 @@ def decode_color_qr(file_name, n_colors=8, block_size_divider=3):
         size_true = find_block_size(img, size)
         size_true[0], size_true[1] = round(
             size_true[0] / block_size_divider), round(size_true[1] / block_size_divider)
+
+        # print('img shape = ', img.shape, 'true size = ',
+        #      img.shape[0] / (21 + 7 + 7))
+        #print('block size est = ', size)
+        #print('block size = ', size_true)
 
         color_img = cv2.imread(file_name)
         color_img = color_img[rect[i].top:rect[i].top+rect[i].height,
@@ -267,5 +271,27 @@ def decode_color_qr(file_name, n_colors=8, block_size_divider=3):
             lables, lables_to_bits, qr_shape, qr_margin))
 
         i += 1
-    endlog(start)
-    return data
+    return data, time_past(start)
+
+
+def hard_decode_colors(file_name, n_colors=8, block_size=(2, 2)):
+    start = time()
+
+    img = cv2.imread(file_name)
+    #plt.subplot(121), plt.imshow(img), plt.title('img')
+
+    lables, lables_to_bits = cluster_colors(img, block_size, n_colors)
+
+    #print('shape = ', img.shape)
+    #print('step = ', block_size)
+
+    qr_block_size = (1, 1)
+    qr_margin = (block_size[0] * 4, block_size[1]
+                 * 4)  # white area around qr-code
+    qr_shape = (int(math.sqrt(len(lables)) + qr_margin[0] * 2),
+                int(math.sqrt(len(lables)) + qr_margin[1] * 2))
+
+    data = recover_data_from_lables(
+        lables, lables_to_bits, qr_shape, qr_margin)
+
+    return data, time_past(start)
