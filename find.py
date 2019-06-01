@@ -20,7 +20,7 @@ color_threshold = 200
 def time_past(start):
     end = time()
     elapsed = end-start
-    return str(timedelta(seconds=elapsed))
+    return elapsed
 
 # open image, send it to zbar and calculate
 # perspective transformations
@@ -278,7 +278,7 @@ def hard_decode_colors(file_name, n_colors=8, block_size=(2, 2)):
     start = time()
 
     img = cv2.imread(file_name)
-    #plt.subplot(121), plt.imshow(img), plt.title('img')
+    # plt.subplot(223), plt.imshow(img, plt.title('img')
 
     lables, lables_to_bits = cluster_colors(img, block_size, n_colors)
 
