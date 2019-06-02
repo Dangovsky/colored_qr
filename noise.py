@@ -23,7 +23,7 @@ def s_p_noise(image, s_vs_p=0.5, amount=0.004):
     num_salt = np.ceil(amount * image.size * s_vs_p)
     coords = [np.random.randint(0, i - 1, int(num_salt))
               for i in image.shape]
-    out[tuple(coords)] = 1
+    out[tuple(coords)] = 255
 
     # Pepper mode
     num_pepper = np.ceil(amount * image.size * (1. - s_vs_p))
@@ -34,10 +34,7 @@ def s_p_noise(image, s_vs_p=0.5, amount=0.004):
 
 
 # Poisson-distributed noise generated from the data.
-def poisson_noise(image, peak=0.5):
-    #noisy = np.random.poisson(image / 255.0 * peak) / peak * 255
-    #vals = len(np.unique(image))
-    #vals = 2 ** np.ceil(np.log2(vals))
+def poisson_noise(image, peak=10):
     noisy = np.random.poisson(image / 255.0 * peak) / peak * 255
     return np.clip(noisy, 0, 255).astype(np.uint8)
 
